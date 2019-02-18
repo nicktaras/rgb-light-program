@@ -1,24 +1,32 @@
 #include <Adafruit_NeoPixel.h>
 #ifdef __AVR__
-  #include <avr/power.h>
+#include <avr/power.h>
 #endif
 
+#include <math.h>
+long randNumber;
+
 #define PIN            6
-#define NUMPIXELS      8
+#define NUMPIXELS      2 // 8
 
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
 
 void setup() {
   Serial.begin(9600);
-#endif
   pixels.begin();
 }
 
-int colorValueR = 0;
-int colorValueG = 0;
-int colorValueB = 0;
+// initial values.
+float colorValueR = 0;
+float colorValueG = 0;
+float colorValueB = 0;
 
+// all rgbs - see colorLineReference enum
+// ro reach the values.
 int colors[] = {   
+  255,0,0,
+  0,255,0,
+  0,0,255,
   240,248,255,
   230,230,250,
   176,224,230,
@@ -89,9 +97,13 @@ int colors[] = {
   255,228,225,
   255,222,173
 };
+size_t lengthOfColors = sizeof(colors)/sizeof(colors[0]);
 
 int colourLineOffset = 3;
 enum colorLineReference {
+  red,
+  green,
+  blue,
   aliceblue,
   lavender,
   powderblue,
@@ -108,7 +120,7 @@ enum colorLineReference {
   slateblue,
   darkslateblue,
   royalblue,
-  blue,
+  blue2,
   mediumblue,
   darkblue,
   navy,
@@ -163,64 +175,98 @@ enum colorLineReference {
   navajowhite
 };
 
-// Beautiful colour combinations:
-// mistyrose + magenta.
+// References to set colour and colour to transition to.
+// apply defaults here.
+colorLineReference primaryTargetColourIndex = red;
+colorLineReference secondaryTargetColourIndex = plum;
 
-colorLineReference colourStateIndex = mistyrose;
-colorLineReference colourStateIndex2 = magenta;
-colorLineReference colourStateAlternate = colourStateIndex;
+// Application State
+enum state {
+  inTranistion,
+  colourShown
+};
 
+// On load
+state currentState = inTranistion;
+
+// Trigger to apply a single colour to the leds.
 void singleColourPaint () {
- for(int i=0;i<NUMPIXELS;i++){
-    pixels.setPixelColor(i, colors[colourStateIndex*3], colors[colourStateIndex*3+1], colors[colourStateIndex*3+2]); 
+ for (int i = 0; i < NUMPIXELS; i++) {
+    pixels.setPixelColor(i, colors[primaryTargetColourIndex*colourLineOffset], colors[primaryTargetColourIndex*colourLineOffset+1], colors[primaryTargetColourIndex*colourLineOffset+2]); 
     pixels.show();
   }
+  currentState = colourShown;
 }
 
-void twoColourPaint () {
+// Trigger to apply two colours to the leds 50/50
+// e.g. red, red, blue, blue
+void twoColourDividePaint () {
 
- // Alternate 
- for(int i = 0; i < NUMPIXELS; i++) {
-
-  bool alternatePalette = (i % 2 ); //(i + 1) % dirArr.length;
-    
-  if(alternatePalette == 1) {
-
-    colorLineReference colourStateAlternate = colourStateIndex;
-    pixels.setPixelColor(i, colors[colourStateAlternate*3], colors[colourStateAlternate*3+1], colors[colourStateAlternate*3+2]); 
+  int startPoint = NUMPIXELS / 2;
+  int endPoint = NUMPIXELS / 2;
+  
+  for(int i = 0; i < endPoint; i++) {
+    pixels.setPixelColor(i, colors[primaryTargetColourIndex*3], colors[primaryTargetColourIndex*3+1], colors[primaryTargetColourIndex*3+2]); 
     pixels.show();
-    
-  } else {
-
-    colorLineReference colourStateAlternate = colourStateIndex2;
-    pixels.setPixelColor(i, colors[colourStateAlternate*3], colors[colourStateAlternate*3+1], colors[colourStateAlternate*3+2]); 
-    pixels.show();  
   }
-  
- }
 
- // 50 / 50 on strip
-
-// int startPoint = NUMPIXELS / 2;
-// int endPoint = NUMPIXELS / 2;
-//  
-// for(int i = 0; i < endPoint; i++) {
-//    pixels.setPixelColor(i, colors[colourStateIndex*3], colors[colourStateIndex*3+1], colors[colourStateIndex*3+2]); 
-//    pixels.show();
-//  }
-//
-//  for(int j = startPoint; j < NUMPIXELS; j++){
-//    pixels.setPixelColor(j, colors[colourStateIndex2*3], colors[colourStateIndex2*3+1], colors[colourStateIndex2*3+2]); 
-//    pixels.show();
-//  }
-//  
-}
-
-void loop() {
-  
- twoColourPaint();
+  for(int j = startPoint; j < NUMPIXELS; j++){
+    pixels.setPixelColor(j, colors[secondaryTargetColourIndex*3], colors[secondaryTargetColourIndex*3+1], colors[secondaryTargetColourIndex*3+2]); 
+    pixels.show();
+  }
  
 }
 
+// Trigger to apply a two colours to the leds.
+// e.g. red, blue, red, blue.
+void twoColourAlternatePaint () {
 
+  colorLineReference colourStateAlternate = primaryTargetColourIndex;
+
+  for(int i = 0; i < NUMPIXELS; i++) {
+
+    bool alternatePalette = (i % 2 );
+      
+    if(alternatePalette == 1) {
+
+      colorLineReference colourStateAlternate = primaryTargetColourIndex;
+      pixels.setPixelColor(i, colors[colourStateAlternate*colourLineOffset], colors[colourStateAlternate*colourLineOffset+1], colors[colourStateAlternate*colourLineOffset+2]); 
+      pixels.show();
+      
+    } else {
+
+      colorLineReference colourStateAlternate = secondaryTargetColourIndex;
+      pixels.setPixelColor(i, colors[colourStateAlternate*colourLineOffset], colors[colourStateAlternate*colourLineOffset+1], colors[colourStateAlternate*colourLineOffset+2]); 
+      pixels.show();
+    }
+
+  }
+ 
+}
+
+// Animate from one whole colour to another.
+void moodLightRandomPaint () {
+  if (round(colorValueR) != colors[primaryTargetColourIndex*3] ||
+      round(colorValueG) != colors[primaryTargetColourIndex*3+1] || 
+      round(colorValueB) != colors[primaryTargetColourIndex*3+2]
+  ) {
+    for(int i = 0; i < NUMPIXELS; i++) {
+     colorValueR += round(colors[primaryTargetColourIndex*3] - colorValueR) * 0.001;
+     colorValueG += round(colors[primaryTargetColourIndex*3+1] - colorValueG) * 0.001;
+     colorValueB += round(colors[primaryTargetColourIndex*3+2] - colorValueB) * 0.001;
+     pixels.setPixelColor(i, colorValueR, colorValueG, colorValueB);
+     pixels.show();
+    }
+  } else {
+    
+    randNumber = random(lengthOfColors / 3); 
+    primaryTargetColourIndex = randNumber;
+  }
+  pixels.show();
+//  delay(1); // for debugging lower value.
+}
+
+void loop() {
+  moodLightRandomPaint();
+}
 
