@@ -14,7 +14,7 @@ Apply two colours to the led strip. e.g. red, blue, red, blue.
 ## twoColourDividePaint()
 apply two colours to the leds 50/50 e.g. red, red, blue, blue
 
-## singleColourPaint 
+## singleColourPaint()
 apply a single colour to the led strip
 
 ### Set default colours on load:
