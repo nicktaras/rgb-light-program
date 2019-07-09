@@ -21,4 +21,10 @@ apply a single colour to the led strip
 ColorLineReference primaryTargetColourIndex = red;
 ColorLineReference secondaryTargetColourIndex = plum;
 
+// This is a beaufiful algorithm <3
+// It will help me to animate 3 LED's to reach their destination
+// values at the same time. 
 
+const lerp = (v0, v1, perc) => {
+  return v0 * (1 - perc) + v1 * perc;
+}
