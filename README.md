@@ -1,4 +1,4 @@
-# rgb_led_iot
+# rgb-light-program
 A project to create an elegant light display for the home.
 
 ![alt text](https://github.com/nicktaras/rgbIot/blob/master/project%20images/1.JPG?raw=true)
